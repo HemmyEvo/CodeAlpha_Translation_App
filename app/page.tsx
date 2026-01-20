@@ -148,19 +148,14 @@ export default function TranslatorPage() {
     
     window.speechSynthesis.cancel(); // Stop any previous speech
     const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = langCode; // Uses the exact code saved in the message (e.g., 'fr-FR')
+    utterance.lang = langCode; // Uses the exact code saved in the message
     utterance.rate = 0.9; // Slightly slower for better clarity
-    
-    // Optional: Log to debug if it fails
-    // console.log(`Speaking: "${text}" in language: ${langCode}`);
-    
     window.speechSynthesis.speak(utterance);
   };
 
   const handleCopy = (id: string, text: string) => {
     navigator.clipboard.writeText(text);
     setCopiedId(id);
-    // Revert icon back after 2 seconds
     setTimeout(() => setCopiedId(null), 2000);
   };
 
@@ -174,7 +169,6 @@ export default function TranslatorPage() {
     }
 
     const currentText = inputText;
-    // Get full objects for Source and Target to save both Label and Code
     const sourceObj = LANGUAGES.find(l => l.code === sourceLang) || LANGUAGES[0];
     const targetObj = LANGUAGES.find(l => l.code === targetLang) || LANGUAGES[1];
 
@@ -184,7 +178,7 @@ export default function TranslatorPage() {
       role: "user",
       text: currentText,
       langLabel: sourceObj.label,
-      langCode: sourceObj.code, // Save 'en-US' specifically
+      langCode: sourceObj.code,
     };
 
     setChats(prev => prev.map(chat => {
@@ -219,7 +213,7 @@ export default function TranslatorPage() {
         role: "assistant",
         text: data.translatedText,
         langLabel: targetObj.label,
-        langCode: targetObj.code, // Save 'fr-FR' specifically for TTS
+        langCode: targetObj.code,
       };
 
       setChats(prev => prev.map(chat => {
@@ -264,7 +258,7 @@ export default function TranslatorPage() {
             animate={{ x: 0, opacity: 1 }}
             exit={{ x: -300, opacity: 0 }}
             className={`
-              absolute lg:relative z-40 h-full w-70 bg-black/80 backdrop-blur-xl border-r border-white/10 flex flex-col
+              absolute lg:relative z-40 h-full w-[280px] bg-black/80 backdrop-blur-xl border-r border-white/10 flex flex-col
               ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
             `}
           >
@@ -288,7 +282,7 @@ export default function TranslatorPage() {
                   }`}
                 >
                   <MessageSquare size={16} className={currentChatId === chat.id ? "text-purple-400" : ""} />
-                  <span className="text-sm truncate w-40">{chat.title}</span>
+                  <span className="text-sm truncate w-[160px]">{chat.title}</span>
                   <button 
                     onClick={(e) => deleteChat(chat.id, e)}
                     className={`absolute right-2 p-1.5 rounded-md transition-all ${
@@ -303,7 +297,7 @@ export default function TranslatorPage() {
                 <div className="text-center text-white/20 text-xs mt-10">No history yet</div>
               )}
             </div>
-            <button onClick={() => setIsSidebarOpen(false)} className="lg:hidden absolute top-4 -right-11.25 p-2 bg-neutral-800 rounded-r-lg text-white/50 border border-l-0 border-white/10">
+            <button onClick={() => setIsSidebarOpen(false)} className="lg:hidden absolute top-4 right-[-45px] p-2 bg-neutral-800 rounded-r-lg text-white/50 border border-l-0 border-white/10">
               <X size={20} />
             </button>
           </motion.aside>
@@ -313,12 +307,12 @@ export default function TranslatorPage() {
       {isSidebarOpen && <div onClick={() => setIsSidebarOpen(false)} className="fixed inset-0 bg-black/60 z-30 lg:hidden backdrop-blur-sm" />}
 
       {/* --- MAIN CONTENT --- */}
-      <main className="flex-1 flex flex-col relative w-full h-full bg-linear-to-br from-neutral-900 via-neutral-950 to-black">
+      <main className="flex-1 flex flex-col relative w-full h-full bg-gradient-to-br from-neutral-900 via-neutral-950 to-black">
         
         {/* Background Blobs */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
-           <div className="absolute top-[-10%] left-[-10%] w-125 h-125 bg-purple-600/10 rounded-full blur-[100px] animate-blob" />
-           <div className="absolute bottom-[-10%] right-[-10%] w-125 h-125 bg-blue-600/10 rounded-full blur-[100px] animate-blob animation-delay-2000" />
+           <div className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] bg-purple-600/10 rounded-full blur-[100px] animate-blob" />
+           <div className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] bg-blue-600/10 rounded-full blur-[100px] animate-blob animation-delay-2000" />
         </div>
 
         {/* Header */}
@@ -328,7 +322,7 @@ export default function TranslatorPage() {
               <Menu size={20} />
             </button>
             <div className="flex items-center gap-2">
-               <div className="w-8 h-8 rounded-lg bg-linear-to-br from-purple-500 to-blue-600 flex items-center justify-center shadow-lg shadow-purple-500/20">
+               <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-purple-500 to-blue-600 flex items-center justify-center shadow-lg shadow-purple-500/20">
                   <Languages size={16} className="text-white" />
                </div>
                <span className="font-semibold tracking-wide hidden sm:inline">AI Translator</span>
@@ -359,7 +353,7 @@ export default function TranslatorPage() {
                 {msg.role === "assistant" && msg.langLabel !== "System" && (
                   <div className="flex gap-3 mt-3 pt-3 border-t border-white/5 justify-end">
                      
-                     {/* SPEAK BUTTON (Updated to use langCode) */}
+                     {/* SPEAK BUTTON */}
                      {/* <button 
                         onClick={() => handleSpeak(msg.text, msg.langCode)} 
                         className="text-white/40 hover:text-purple-400 transition-colors"
@@ -368,7 +362,7 @@ export default function TranslatorPage() {
                         <Volume2 size={16} />
                      </button> */}
 
-                     {/* COPY BUTTON (Updated with Checkmark) */}
+                     {/* COPY BUTTON */}
                      <button 
                         onClick={() => handleCopy(msg.id, msg.text)} 
                         className={`transition-all ${copiedId === msg.id ? "text-green-400" : "text-white/40 hover:text-blue-400"}`}
@@ -376,7 +370,6 @@ export default function TranslatorPage() {
                      >
                         {copiedId === msg.id ? <Check size={16} /> : <Copy size={16} />}
                      </button>
-
                   </div>
                 )}
               </div>
@@ -408,7 +401,7 @@ export default function TranslatorPage() {
 
         {/* Input */}
         <div className="flex-none p-4 w-full max-w-4xl mx-auto z-20">
-            <motion.div layout className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl p-2 flex flex-col gap-2 shadow-2xl">
+            <motion.div layout className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[24px] p-2 flex flex-col gap-2 shadow-2xl">
                 <div className="flex justify-between px-3 pt-1">
                     <select value={sourceLang} onChange={e => setSourceLang(e.target.value)} className="bg-transparent text-xs font-bold text-purple-400 uppercase outline-none cursor-pointer">
                         {LANGUAGES.map(l => <option key={l.code} value={l.code} className="bg-neutral-900">{l.name}</option>)}
@@ -428,7 +421,7 @@ export default function TranslatorPage() {
                         onChange={e => setInputText(e.target.value)}
                         onKeyDown={e => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), handleTranslate())}
                         placeholder={isListening ? "Listening..." : "Type a message..."}
-                        className="flex-1 bg-transparent outline-none text-white placeholder-white/20 resize-none py-3 max-h-32 min-h-11"
+                        className="flex-1 bg-transparent outline-none text-white placeholder-white/20 resize-none py-3 max-h-32 min-h-[44px]"
                         rows={1}
                     />
                     <button onClick={handleTranslate} disabled={!inputText.trim() || isTranslating} className={`p-3 rounded-full transition-all ${inputText.trim() ? "bg-blue-600 text-white shadow-lg" : "bg-white/5 text-white/20"}`}>
@@ -436,6 +429,14 @@ export default function TranslatorPage() {
                     </button>
                 </div>
             </motion.div>
+            
+            {/* --- ATTRIBUTION FOOTER --- */}
+            <div className="mt-4 text-center">
+              <p className="text-[10px] text-white/20">
+                Made by <span className="text-white/40 font-medium tracking-wide">Atilola Emmanuel Oluwatoba</span>
+              </p>
+            </div>
+            
         </div>
 
       </main>
