@@ -24,11 +24,16 @@ type ChatSession = {
   createdAt: number;
 };
 
-type LangOption = {
-  code: string;
-  name: string;
-  label: string;
-};
+// --- Language Options ---
+const LANGUAGES = [
+  { code: "en-US", name: "English", label: "English" },
+  { code: "es-ES", name: "Spanish", label: "Español" },
+  { code: "fr-FR", name: "French", label: "Français" },
+  { code: "de-DE", name: "German", label: "Deutsch" },
+  { code: "zh-CN", name: "Chinese", label: "中文" },
+  { code: "hi-IN", name: "Hindi", label: "हिन्दी" },
+  { code: "ar-SA", name: "Arabic", label: "العربية" },
+];
 
 export default function TranslatorPage() {
   // --- Global State ---
@@ -36,17 +41,13 @@ export default function TranslatorPage() {
   const [currentChatId, setCurrentChatId] = useState<string | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
-  // --- Dynamic Language State ---
-  const [ttsVoices, setTtsVoices] = useState<SpeechSynthesisVoice[]>([]);
-  const [availableLangs, setAvailableLangs] = useState<LangOption[]>([]);
-
   // --- Current Chat State ---
   const [inputText, setInputText] = useState("");
   const [isTranslating, setIsTranslating] = useState(false);
   const [isListening, setIsListening] = useState(false);
-  const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [copiedId, setCopiedId] = useState<string | null>(null); // Track copied message
   
-  // Default to US English and French, but these will validate against loaded voices
+  // Language State
   const [sourceLang, setSourceLang] = useState("en-US");
   const [targetLang, setTargetLang] = useState("fr-FR");
   
@@ -55,48 +56,7 @@ export default function TranslatorPage() {
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const recognitionRef = useRef<any>(null);
 
-  // --- 1. Dynamic Voice Loading ---
-  useEffect(() => {
-    const loadVoices = () => {
-      const voices = window.speechSynthesis.getVoices();
-      if (voices.length > 0) {
-        setTtsVoices(voices);
-
-        // Filter and Map unique languages
-        const uniqueLangsMap = new Map<string, LangOption>();
-        
-        voices.forEach((v) => {
-          const langCode = v.lang;
-          // Only add if not already present to avoid duplicates
-          if (!uniqueLangsMap.has(langCode)) {
-            let displayName = langCode;
-            try {
-              // Try to get a nice name like "English" or "French"
-              displayName = new Intl.DisplayNames([langCode], { type: "language" }).of(langCode.split("-")[0]) || langCode;
-            } catch (e) {
-              console.warn("Intl error", e);
-            }
-
-            uniqueLangsMap.set(langCode, {
-              code: langCode,
-              name: `${displayName} (${langCode})`, // e.g. "English (en-US)"
-              label: displayName,
-            });
-          }
-        });
-
-        // Convert map to array and sort alphabetically
-        const sortedLangs = Array.from(uniqueLangsMap.values()).sort((a, b) => a.label.localeCompare(b.label));
-        setAvailableLangs(sortedLangs);
-      }
-    };
-
-    loadVoices();
-    // Chrome requires this event listener to load voices asynchronously
-    window.speechSynthesis.onvoiceschanged = loadVoices;
-  }, []);
-
-  // --- 2. Load/Save from LocalStorage ---
+  // --- 1. Load/Save from LocalStorage ---
   useEffect(() => {
     const saved = localStorage.getItem("translation-chats");
     if (saved) {
@@ -118,10 +78,11 @@ export default function TranslatorPage() {
     }
   }, [chats]);
 
-  // --- 3. Chat Management Helpers ---
+  // --- 2. Chat Management Helpers ---
   const getCurrentChat = () => chats.find(c => c.id === currentChatId);
   
   const createNewChat = () => {
+    // Prevent duplicate empty chats
     if (chats.length > 0) {
       const mostRecent = chats[0];
       if (mostRecent.messages.length === 0) {
@@ -153,21 +114,19 @@ export default function TranslatorPage() {
     }
   };
 
-  // --- 4. Speech & Copy Logic ---
+  // --- 3. Speech & Copy Logic ---
   const toggleListening = () => {
     if (isListening) {
         recognitionRef.current?.stop();
         setIsListening(false);
         return;
     }
-
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SpeechRecognition) return alert("Browser not supported for Voice Input.");
     
     const recognition = new SpeechRecognition();
-    recognition.lang = sourceLang; // Uses the dynamically selected language
+    recognition.lang = sourceLang;
     recognition.continuous = false;
-    recognition.interimResults = false;
     
     recognition.onstart = () => setIsListening(true);
     recognition.onend = () => setIsListening(false);
@@ -187,31 +146,25 @@ export default function TranslatorPage() {
   const handleSpeak = (text: string, langCode: string) => {
     if (!window.speechSynthesis) return;
     
-    window.speechSynthesis.cancel();
+    window.speechSynthesis.cancel(); // Stop any previous speech
     const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = langCode; // Uses the exact code saved in the message (e.g., 'fr-FR')
+    utterance.rate = 0.9; // Slightly slower for better clarity
     
-    // Find exact voice match or fallback to generic language code
-    const voice = ttsVoices.find(v => v.lang === langCode) || 
-                  ttsVoices.find(v => v.lang.startsWith(langCode.split("-")[0]));
-
-    if (voice) {
-      utterance.voice = voice;
-      utterance.lang = voice.lang;
-    } else {
-      utterance.lang = langCode;
-    }
-
-    utterance.rate = 0.9;
+    // Optional: Log to debug if it fails
+    // console.log(`Speaking: "${text}" in language: ${langCode}`);
+    
     window.speechSynthesis.speak(utterance);
   };
 
   const handleCopy = (id: string, text: string) => {
     navigator.clipboard.writeText(text);
     setCopiedId(id);
+    // Revert icon back after 2 seconds
     setTimeout(() => setCopiedId(null), 2000);
   };
 
-  // --- 5. Core Translation Logic ---
+  // --- 4. Core Translation Logic ---
   const handleTranslate = async () => {
     if (!inputText.trim()) return;
 
@@ -221,10 +174,9 @@ export default function TranslatorPage() {
     }
 
     const currentText = inputText;
-    
-    // Find label from available languages, fallback to code if loading hasn't finished
-    const sourceObj = availableLangs.find(l => l.code === sourceLang) || { label: "Auto", code: sourceLang };
-    const targetObj = availableLangs.find(l => l.code === targetLang) || { label: "Target", code: targetLang };
+    // Get full objects for Source and Target to save both Label and Code
+    const sourceObj = LANGUAGES.find(l => l.code === sourceLang) || LANGUAGES[0];
+    const targetObj = LANGUAGES.find(l => l.code === targetLang) || LANGUAGES[1];
 
     // 1. Add User Message
     const userMsg: Message = {
@@ -232,7 +184,7 @@ export default function TranslatorPage() {
       role: "user",
       text: currentText,
       langLabel: sourceObj.label,
-      langCode: sourceObj.code,
+      langCode: sourceObj.code, // Save 'en-US' specifically
     };
 
     setChats(prev => prev.map(chat => {
@@ -267,7 +219,7 @@ export default function TranslatorPage() {
         role: "assistant",
         text: data.translatedText,
         langLabel: targetObj.label,
-        langCode: targetObj.code, 
+        langCode: targetObj.code, // Save 'fr-FR' specifically for TTS
       };
 
       setChats(prev => prev.map(chat => {
@@ -407,16 +359,16 @@ export default function TranslatorPage() {
                 {msg.role === "assistant" && msg.langLabel !== "System" && (
                   <div className="flex gap-3 mt-3 pt-3 border-t border-white/5 justify-end">
                      
-                     {/* SPEAK BUTTON (Dynamic Voice Logic) */}
-                     <button 
+                     {/* SPEAK BUTTON (Updated to use langCode) */}
+                     {/* <button 
                         onClick={() => handleSpeak(msg.text, msg.langCode)} 
                         className="text-white/40 hover:text-purple-400 transition-colors"
                         title="Listen"
                      >
                         <Volume2 size={16} />
-                     </button>
+                     </button> */}
 
-                     {/* COPY BUTTON */}
+                     {/* COPY BUTTON (Updated with Checkmark) */}
                      <button 
                         onClick={() => handleCopy(msg.id, msg.text)} 
                         className={`transition-all ${copiedId === msg.id ? "text-green-400" : "text-white/40 hover:text-blue-400"}`}
@@ -457,20 +409,13 @@ export default function TranslatorPage() {
         {/* Input */}
         <div className="flex-none p-4 w-full max-w-4xl mx-auto z-20">
             <motion.div layout className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl p-2 flex flex-col gap-2 shadow-2xl">
-                {/* Dynamic Language Selectors */}
                 <div className="flex justify-between px-3 pt-1">
                     <select value={sourceLang} onChange={e => setSourceLang(e.target.value)} className="bg-transparent text-xs font-bold text-purple-400 uppercase outline-none cursor-pointer">
-                        {availableLangs.length === 0 && <option value="en-US">Loading...</option>}
-                        {availableLangs.map(l => (
-                          <option key={l.code} value={l.code} className="bg-neutral-900">{l.name}</option>
-                        ))}
+                        {LANGUAGES.map(l => <option key={l.code} value={l.code} className="bg-neutral-900">{l.name}</option>)}
                     </select>
                     <span className="text-white/20">→</span>
                     <select value={targetLang} onChange={e => setTargetLang(e.target.value)} className="bg-transparent text-xs font-bold text-blue-400 uppercase outline-none cursor-pointer text-right">
-                        {availableLangs.length === 0 && <option value="fr-FR">Loading...</option>}
-                        {availableLangs.map(l => (
-                          <option key={l.code} value={l.code} className="bg-neutral-900">{l.name}</option>
-                        ))}
+                        {LANGUAGES.map(l => <option key={l.code} value={l.code} className="bg-neutral-900">{l.name}</option>)}
                     </select>
                 </div>
 
